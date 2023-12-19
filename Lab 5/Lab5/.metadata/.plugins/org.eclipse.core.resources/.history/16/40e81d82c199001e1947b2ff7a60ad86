@@ -1,0 +1,32 @@
+/*
+ * fsm.h
+ *
+ *  Created on: Dec 7, 2023
+ *      Author: M S I
+ */
+
+#ifndef INC_FSM_H_
+#define INC_FSM_H_
+
+#define MAX_BUFFER_SIZE  30
+#define TRUE 1
+#define FALSE 0
+
+#include "main.h"
+#include "software_timer.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include "string.h"
+
+extern uint8_t temp;
+extern uint8_t buffer[MAX_BUFFER_SIZE];
+extern uint8_t index_buffer;
+extern uint8_t buffer_flag;
+extern int counter;
+extern int enableCounter;
+extern int isPrint;
+
+void command_parser_fsm();
+void uart_communication_fsm();
+
+#endif /* INC_FSM_H_ */

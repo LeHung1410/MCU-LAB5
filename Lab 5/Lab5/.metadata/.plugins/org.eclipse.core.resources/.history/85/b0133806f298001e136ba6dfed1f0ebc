@@ -1,0 +1,149 @@
+/*
+ * fsm.c
+ *
+ *  Created on: Dec 7, 2023
+ *      Author: M S I
+ */
+#include "fsm.h"
+
+//global variable
+uint8_t temp = 0;
+uint8_t buffer[MAX_BUFFER_SIZE];
+uint8_t index_buffer = 0;
+uint8_t buffer_flag = 0;
+
+//local variable
+uint32_t ADC_value = 0;
+char str[50];
+
+int counter = 300;
+int enableCounter = 0;
+
+enum state {char_initial, char_DOT, char_DOT_R, char_DOT_RS, char_DOT_RST,char_DOT_RST_HASH,
+	        char_DOT_0, char_DOT_OK, char_DOT_OK_HASH};
+enum state currentState = char_initial;
+
+uint8_t isRST = 0;
+uint8_t isOK = 0;
+int isPrint = 0;
+
+void command_parser_fsm(ADC_HandleTypeDef* hadc1, UART_HandleTypeDef* huart2){
+	switch(currentState){
+		case char_initial:
+			if(temp == (int) "!"){
+				currentState = char_DOT;
+			}
+			break;
+
+		case char_DOT:
+			if(temp == 'R'){
+				currentState = char_DOT_R;
+			}
+			else if(temp == 'O'){
+				currentState = char_DOT_0;
+			}
+			else if(temp == '!'){
+				currentState = char_DOT;
+			}
+			else{
+				currentState = char_initial;
+			}
+			break;
+
+		case char_DOT_R:
+			if(temp == 'S'){
+				currentState = char_DOT_RS;
+			}
+			else if(temp == '!'){
+				currentState = char_DOT;
+			}
+			else{
+				currentState = char_initial;
+			}
+			break;
+
+		case char_DOT_RS:
+			if(temp == 'T'){
+				currentState = char_DOT_RST;
+			}
+			else if(temp == '!'){
+				currentState = char_DOT;
+			}
+			else{
+				currentState = char_initial;
+			}
+			break;
+
+		case char_DOT_RST:
+			if(temp == '#'){
+				isRST = 1;
+				ADC_value = HAL_ADC_GetValue(hadc1);
+				HAL_UART_Transmit (huart2,(void*)str,sprintf(str,"!ADC= %lu\r\n",ADC_value),500);
+				currentState = char_DOT_RST_HASH;
+			}
+			else if(temp == '!'){
+				currentState = char_DOT;
+			}
+			else{
+				currentState = char_initial;
+			}
+			break;
+
+		case char_DOT_RST_HASH:
+			if(temp == '!'){
+				currentState = char_DOT;
+			}
+			else{
+				currentState = char_initial;
+			}
+			break;
+
+		case char_DOT_0:
+			if(temp == 'K'){
+				currentState = char_DOT_OK;
+			}
+			else if(temp == '!'){
+				currentState = char_DOT;
+			}
+			else{
+				currentState = char_initial;
+			}
+			break;
+		case char_DOT_OK:
+			if(temp == '#'){
+				isOK = 1;
+				currentState = char_DOT_OK_HASH;
+			}
+			else if(temp == '!'){
+				currentState = char_DOT;
+			}
+			break;
+
+		case char_DOT_OK_HASH:
+			if(temp == '!'){
+				currentState = char_DOT;
+			}
+			else{
+				currentState = char_initial;
+			}
+			break;
+	}
+}
+
+void uart_communication_fsm(ADC_HandleTypeDef* hadc1, UART_HandleTypeDef* huart2){
+	if(isRST == 1){
+		enableCounter = 1;
+		if (isPrint == 1){
+			ADC_value = HAL_ADC_GetValue(hadc1);
+			HAL_UART_Transmit (huart2,(void*)str,sprintf(str,"!ADC= %lu\r\n",ADC_value),500);
+			isPrint = 0;
+		}
+	}
+	if(isOK == 1){
+		isRST = 0;
+		isOK = 0;
+		enableCounter = 0;
+		counter = 300;
+		isPrint = 0;
+	}
+}
